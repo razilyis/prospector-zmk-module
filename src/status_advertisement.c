@@ -512,16 +512,16 @@ static void build_manufacturer_payload(void) {
         LOG_DBG("📊 WPM reset due to %dms inactivity", WPM_DECAY_TIMEOUT_MS);
     } else if (time_since_activity > 5000 && current_wpm > 0) {
         // Apply smooth decay after 5 seconds of inactivity
-        float idle_seconds = (time_since_activity - 5000) / 1000.0f;
+        double idle_seconds = (double)(time_since_activity - 5000) / 1000.0;
         // Adjust decay rate for configurable window (faster decay for shorter window)
-        float decay_factor = 1.0f - (idle_seconds / (WPM_WINDOW_MS / 1000.0f));
-        if (decay_factor < 0.0f) decay_factor = 0.0f;
+        double decay_factor = 1.0 - (idle_seconds / ((double)WPM_WINDOW_MS / 1000.0));
+        if (decay_factor < 0.0) decay_factor = 0.0;
 
         // Apply decay to current WPM
         uint8_t decayed_wpm = (uint8_t)(current_wpm * decay_factor);
         if (decayed_wpm != current_wpm) {
             LOG_DBG("📊 WPM decay: %d -> %d (idle: %.1fs)",
-                    current_wpm, decayed_wpm, idle_seconds + 5.0f);
+                    current_wpm, decayed_wpm, idle_seconds + 5.0);
             current_wpm = decayed_wpm;
         }
     }
@@ -926,7 +926,7 @@ static void adv_work_handler(struct k_work *work) {
     update_counter++;
     if (update_counter % 20 == 0) {
         LOG_INF("📊 PROSPECTOR: Using %dms intervals (%.1fHz) - %s mode",
-                interval_ms, 1000.0f/interval_ms, is_active ? "ACTIVE" : "IDLE");
+                interval_ms, 1000.0 / (double)interval_ms, is_active ? "ACTIVE" : "IDLE");
     }
 
     k_work_schedule(&adv_work, K_MSEC(interval_ms));
@@ -938,8 +938,8 @@ static int init_prospector_status(void) {
 
 #if IS_ENABLED(CONFIG_ZMK_STATUS_ADV_ACTIVITY_BASED)
     LOG_INF("⚙️ PROSPECTOR: Activity-based advertisement initialized");
-    LOG_INF("   ACTIVE interval: %dms (%.1fHz)", ACTIVE_UPDATE_INTERVAL_MS, (double)(1000.0f/(float)ACTIVE_UPDATE_INTERVAL_MS));
-    LOG_INF("   IDLE interval: %dms (%.1fHz)", IDLE_UPDATE_INTERVAL_MS, (double)(1000.0f/(float)IDLE_UPDATE_INTERVAL_MS));
+    LOG_INF("   ACTIVE interval: %dms (%.1fHz)", ACTIVE_UPDATE_INTERVAL_MS, 1000.0 / (double)ACTIVE_UPDATE_INTERVAL_MS);
+    LOG_INF("   IDLE interval: %dms (%.1fHz)", IDLE_UPDATE_INTERVAL_MS, 1000.0 / (double)IDLE_UPDATE_INTERVAL_MS);
     LOG_INF("   Activity timeout: %dms", ACTIVITY_TIMEOUT_MS);
 #else
     LOG_INF("⚙️ PROSPECTOR: Fixed advertisement interval: %dms", CONFIG_ZMK_STATUS_ADV_INTERVAL_MS);
