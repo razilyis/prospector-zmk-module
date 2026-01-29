@@ -734,13 +734,15 @@ int zmk_status_scanner_start(void) {
     }
 #endif
 
-    // Use 100% duty cycle for immediate response (USB powered, no battery concern)
-    // interval = window = 30ms means continuous scanning with no gaps
+    // Use 50% duty cycle to allow time for Periodic Sync reception windows
+    // interval = 60ms, window = 30ms creates gaps for Periodic ADV data reception
+    // Note: 100% duty cycle (interval=window) prevents Periodic Sync data reception
+    // because the radio is always busy scanning primary channels
     struct bt_le_scan_param scan_param = {
         .type = BT_LE_SCAN_TYPE_ACTIVE,  // ACTIVE to receive Scan Response packets
         .options = BT_LE_SCAN_OPT_NONE,
-        .interval = BT_GAP_SCAN_FAST_WINDOW,  // 30ms (was 60ms)
-        .window = BT_GAP_SCAN_FAST_WINDOW,    // 30ms (100% duty cycle)
+        .interval = BT_GAP_SCAN_FAST_INTERVAL,  // 60ms
+        .window = BT_GAP_SCAN_FAST_WINDOW,      // 30ms (50% duty cycle)
     };
 
     int err = bt_le_scan_start(&scan_param, scan_callback);
@@ -917,15 +919,16 @@ static void per_adv_sync_synced_cb(struct bt_le_per_adv_sync *sync,
     // Without this call, the sync is established but no data is received!
     int recv_err = bt_le_per_adv_sync_recv_enable(sync);
     if (recv_err == 0) {
-        LOG_INF("📥 Periodic ADV receive enabled!");
+        LOG_INF("[SYNC] Periodic ADV receive enabled!");
     } else if (recv_err == -EALREADY) {
-        LOG_DBG("📥 Periodic ADV receive already enabled");
+        LOG_INF("[SYNC] Periodic ADV receive already enabled");
     } else {
-        LOG_ERR("❌ Failed to enable periodic ADV receive: %d", recv_err);
+        LOG_ERR("[SYNC] Failed to enable periodic ADV receive: %d", recv_err);
     }
 
-    // NOTE: Do NOT stop scanning - we need Legacy ADV for v1 keyboards and backup
-    // The controller should handle both scanning and periodic sync simultaneously
+    // NOTE: Do NOT stop scanning - it breaks UI updates via legacy ADV
+    // Test result: Even with scanning stopped, recv_cb was never called.
+    // This suggests the keyboard is not sending periodic data, NOT a radio scheduling issue.
 
     // Start timeout to check if we receive any data on this SID
     last_periodic_data_time = 0;
@@ -1074,12 +1077,16 @@ static void per_adv_recv_cb(struct bt_le_per_adv_sync *sync,
                             struct net_buf_simple *buf) {
     per_adv_recv_count++;
 
+    // Log every recv callback invocation for debugging
+    LOG_INF("[RECV] per_adv_recv_cb called! count=%u, len=%u, rssi=%d",
+            per_adv_recv_count, buf->len, info->rssi);
+
     // Record that we received data - this cancels the SID cycling timeout
     uint32_t now = k_uptime_get_32();
     if (last_periodic_data_time == 0) {
         // First data received on this SID - cancel timeout and confirm this is the right SID
         k_work_cancel_delayable(&sid_data_timeout_work);
-        LOG_INF("🎉 Periodic data received! SID=%d confirmed", current_sync_sid);
+        LOG_INF("[RECV] First data! SID=%d confirmed", current_sync_sid);
 
         // Store this SID for future reference
         if (selected_keyboard_index >= 0 &&
