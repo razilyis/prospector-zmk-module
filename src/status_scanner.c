@@ -1399,7 +1399,7 @@ const char* zmk_status_scanner_get_sync_icon(sync_state_t state) {
 }
 
 // Initialize on system startup - use later priority to ensure BT is ready
-static int scanner_init(const struct device *dev) {
+static int scanner_init(void) {
     int ret = zmk_status_scanner_init();
 
 #if IS_ENABLED(CONFIG_PROSPECTOR_SCANNER_PERIODIC_SYNC)
