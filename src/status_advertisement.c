@@ -35,7 +35,6 @@
 
 // Custom WPM implementation to avoid ZMK WPM compatibility issues
 static uint32_t key_press_count = 0;
-static uint32_t wpm_start_time = 0;
 uint8_t current_wpm = 0;  /* Exported for periodic_adv_protocol.c */
 // Circular buffer for rolling window implementation
 #define WPM_HISTORY_SIZE 60  // 60 seconds of history at 1-second resolution
@@ -673,7 +672,8 @@ static void build_manufacturer_payload(void) {
 #endif
 
     // Compact layer name (4 bytes) - reduced from 6
-    snprintf(manufacturer_data.layer_name, sizeof(manufacturer_data.layer_name), "L%d", layer);
+    // Limit to L0-L9 to fit in 4 bytes (3 chars + null), layers 10+ show as L0-L5
+    snprintf(manufacturer_data.layer_name, sizeof(manufacturer_data.layer_name), "L%d", layer % 10);
 
     // Keyboard ID (4 bytes)
     const char *keyboard_name = CONFIG_ZMK_STATUS_ADV_KEYBOARD_NAME;
@@ -938,8 +938,8 @@ static int init_prospector_status(void) {
 
 #if IS_ENABLED(CONFIG_ZMK_STATUS_ADV_ACTIVITY_BASED)
     LOG_INF("⚙️ PROSPECTOR: Activity-based advertisement initialized");
-    LOG_INF("   ACTIVE interval: %dms (%.1fHz)", ACTIVE_UPDATE_INTERVAL_MS, 1000.0f/ACTIVE_UPDATE_INTERVAL_MS);
-    LOG_INF("   IDLE interval: %dms (%.1fHz)", IDLE_UPDATE_INTERVAL_MS, 1000.0f/IDLE_UPDATE_INTERVAL_MS);
+    LOG_INF("   ACTIVE interval: %dms (%.1fHz)", ACTIVE_UPDATE_INTERVAL_MS, (double)(1000.0f/(float)ACTIVE_UPDATE_INTERVAL_MS));
+    LOG_INF("   IDLE interval: %dms (%.1fHz)", IDLE_UPDATE_INTERVAL_MS, (double)(1000.0f/(float)IDLE_UPDATE_INTERVAL_MS));
     LOG_INF("   Activity timeout: %dms", ACTIVITY_TIMEOUT_MS);
 #else
     LOG_INF("⚙️ PROSPECTOR: Fixed advertisement interval: %dms", CONFIG_ZMK_STATUS_ADV_INTERVAL_MS);
