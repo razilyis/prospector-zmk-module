@@ -639,6 +639,7 @@ void periodic_adv_log_status(void) {
     } else {
         LOG_INF("[PERIODIC_STATUS] ACTIVE - per_adv_set=%p, seq=%d", (void*)per_adv_set, sequence_number);
     }
+}
 
 int periodic_adv_protocol_stop(void) {
     if (!per_adv_started) {
