@@ -625,6 +625,16 @@ static void scan_callback(const bt_addr_le_t *addr, int8_t rssi, uint8_t type,
     
     // Process Prospector data if found
     if (prospector_data) {
+        // v2.2.0: Skip legacy ADV processing if this keyboard is periodically synced
+        // This prevents v1 data from overwriting v2 data
+#if IS_ENABLED(CONFIG_PROSPECTOR_SCANNER_PERIODIC_SYNC)
+        int kb_index = find_keyboard_by_ble_addr(addr);
+        if (kb_index >= 0 && keyboards[kb_index].periodic_synced) {
+            LOG_DBG("Skipping legacy ADV for periodically synced keyboard (slot %d)", kb_index);
+            return;  // Skip legacy processing - v2 data is already being received
+        }
+#endif
+
         LOG_DBG("Central=%d%%, Peripheral=[%d,%d,%d], Layer=%d",
                prospector_data->battery_level, prospector_data->peripheral_battery[0],
                prospector_data->peripheral_battery[1], prospector_data->peripheral_battery[2],
@@ -1021,7 +1031,11 @@ static void process_dynamic_packet(const struct periodic_dynamic_packet *pkt, in
     legacy_flags |= ZMK_STATUS_FLAG_HAS_PERIODIC;  // Mark as v2 keyboard
     kb->data.status_flags = legacy_flags;
 
-    // Update layer name in legacy format
+    // v2.2.0: Store full layer name in v2_layer_name (8 chars)
+    strncpy(kb->v2_layer_name, pkt->current_layer_name, sizeof(kb->v2_layer_name) - 1);
+    kb->v2_layer_name[sizeof(kb->v2_layer_name) - 1] = '\0';
+
+    // Also update legacy layer name for backwards compatibility (truncated to 3 chars)
     strncpy(kb->data.layer_name, pkt->current_layer_name, sizeof(kb->data.layer_name) - 1);
     kb->data.layer_name[sizeof(kb->data.layer_name) - 1] = '\0';
 

@@ -671,9 +671,22 @@ static void build_manufacturer_payload(void) {
     memset(manufacturer_data.peripheral_battery, 0, 3);
 #endif
 
-    // Compact layer name (4 bytes) - reduced from 6
-    // Limit to L0-L9 to fit in 4 bytes (3 chars + null), layers 10+ show as L0-L5
+    // Compact layer name (4 bytes = 3 chars + null)
+    // Use actual layer name, truncated to 3 characters
+#if IS_ENABLED(CONFIG_ZMK_SPLIT_ROLE_CENTRAL) || !IS_ENABLED(CONFIG_ZMK_SPLIT)
+    const char *layer_name = zmk_keymap_layer_name(layer);
+    if (layer_name && layer_name[0] != '\0') {
+        // Use first 3 characters of actual layer name
+        strncpy(manufacturer_data.layer_name, layer_name, sizeof(manufacturer_data.layer_name) - 1);
+        manufacturer_data.layer_name[sizeof(manufacturer_data.layer_name) - 1] = '\0';
+    } else {
+        // Fallback to L0-L9 format
+        snprintf(manufacturer_data.layer_name, sizeof(manufacturer_data.layer_name), "L%d", layer % 10);
+    }
+#else
+    // Peripheral: no layer name available
     snprintf(manufacturer_data.layer_name, sizeof(manufacturer_data.layer_name), "L%d", layer % 10);
+#endif
 
     // Keyboard ID (4 bytes)
     const char *keyboard_name = CONFIG_ZMK_STATUS_ADV_KEYBOARD_NAME;

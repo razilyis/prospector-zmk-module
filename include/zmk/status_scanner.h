@@ -47,6 +47,7 @@ struct zmk_keyboard_status {
     bool periodic_synced;                  // Periodic sync is active
 
     // v2.2.0 Extended data (from Periodic packets)
+    char v2_layer_name[8];                 // Current layer name from v2 Dynamic packet (8 chars)
     char layer_names[10][8];               // Layer names (up to 10)
     uint8_t layer_count;                   // Number of layers
     int8_t peripheral_rssi[3];             // Peripheral RSSI values
