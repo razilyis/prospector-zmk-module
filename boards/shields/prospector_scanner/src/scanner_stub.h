@@ -101,3 +101,13 @@ bool scanner_get_selected_keyboard_addr(uint8_t *ble_addr_out);
  * @param name Device name to set
  */
 void scanner_update_keyboard_name_by_addr(const uint8_t *ble_addr, const char *name);
+
+/**
+ * @brief Request display refresh
+ *
+ * Triggers a display update cycle. Call after screen transitions
+ * to ensure widgets are populated with current data.
+ *
+ * @return 0 on success, negative error code on failure
+ */
+int scanner_msg_send_display_refresh(void);

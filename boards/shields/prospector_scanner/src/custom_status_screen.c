@@ -4025,6 +4025,7 @@ static void swipe_process_timer_cb(lv_timer_t *timer) {
             lv_obj_invalidate(screen_obj);
             create_main_screen_widgets();
             current_screen = SCREEN_MAIN;
+            scanner_msg_send_display_refresh();  /* Refresh after transition */
         } else if (current_screen == SCREEN_PROSPECTOR_DISPLAY) {
             /* Cycle to next layout within Prospector Display */
             LOG_DBG("PROSPECTOR_DISPLAY: next layout");
@@ -4042,6 +4043,7 @@ static void swipe_process_timer_cb(lv_timer_t *timer) {
             lv_obj_invalidate(screen_obj);
             create_main_screen_widgets();
             current_screen = SCREEN_MAIN;
+            scanner_msg_send_display_refresh();  /* Refresh after transition */
         } else if (current_screen == SCREEN_MAIN) {
             LOG_DBG("MAIN -> KEYBOARD_SELECT");
             destroy_main_screen_widgets();
@@ -4076,6 +4078,7 @@ static void swipe_process_timer_cb(lv_timer_t *timer) {
             lv_obj_invalidate(screen_obj);
             create_main_screen_widgets();
             current_screen = SCREEN_MAIN;
+            scanner_msg_send_display_refresh();  /* Refresh after transition */
         } else if (current_screen == SCREEN_KEYBOARD_SELECT) {
             /* Channel decrement on left swipe */
             ks_close_channel_popup();  /* Close popup if open */
@@ -4094,6 +4097,7 @@ static void swipe_process_timer_cb(lv_timer_t *timer) {
             lv_obj_invalidate(screen_obj);
             create_main_screen_widgets();
             current_screen = SCREEN_MAIN;
+            scanner_msg_send_display_refresh();  /* Refresh after transition */
         } else if (current_screen == SCREEN_MAIN) {
             LOG_DBG("MAIN -> QUICK_ACTIONS");
             destroy_main_screen_widgets();
