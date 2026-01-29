@@ -45,7 +45,11 @@ LOG_MODULE_DECLARE(zmk, CONFIG_ZMK_LOG_LEVEL);
  * Configuration
  *============================================================================*/
 
-#define DYNAMIC_INTERVAL_MS  CONFIG_PROSPECTOR_DYNAMIC_PACKET_INTERVAL_MS
+/* TEST: Use slower interval to debug recv callback issue
+ * Original: CONFIG_PROSPECTOR_DYNAMIC_PACKET_INTERVAL_MS (30ms)
+ * Test: 1000ms (same as Zephyr sample default range)
+ */
+#define DYNAMIC_INTERVAL_MS  1000  // Was: CONFIG_PROSPECTOR_DYNAMIC_PACKET_INTERVAL_MS
 #define STATIC_INTERVAL_MS   CONFIG_PROSPECTOR_STATIC_PACKET_INTERVAL_MS
 
 /* Convert ms to BLE interval units (1.25ms) */
