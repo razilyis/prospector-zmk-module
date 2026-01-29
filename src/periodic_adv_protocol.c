@@ -508,19 +508,43 @@ int periodic_adv_protocol_start(void) {
 
     /* Create Extended Advertising Set for Periodic ADV */
     if (!per_adv_set) {
-        /* Use BT_LE_ADV_OPT_NO_2M to force 1M PHY for better compatibility */
-        static const struct bt_le_adv_param ext_adv_param = BT_LE_ADV_PARAM_INIT(
-            BT_LE_ADV_OPT_EXT_ADV | BT_LE_ADV_OPT_USE_IDENTITY | BT_LE_ADV_OPT_NO_2M,
-            BT_GAP_ADV_FAST_INT_MIN_2,
-            BT_GAP_ADV_FAST_INT_MAX_2,
-            NULL);
-
-        err = bt_le_ext_adv_create(&ext_adv_param, NULL, &per_adv_set);
+        /*
+         * CRITICAL: Use NON-CONNECTABLE Extended Advertising for Periodic ADV
+         * Reference: Zephyr samples/bluetooth/periodic_adv uses BT_LE_EXT_ADV_NCONN
+         *
+         * Periodic ADV requires a separate Extended ADV set that:
+         * 1. Is non-connectable (Periodic ADV cannot work with connectable ADV)
+         * 2. Uses Extended ADV format (for SyncInfo in AUX_ADV_IND)
+         * 3. Uses identity address for scanner to correlate with legacy ADV
+         *
+         * We use BT_LE_EXT_ADV_NCONN_IDENTITY (not BT_LE_EXT_ADV_NCONN) because:
+         * - Scanner needs to match BLE address between Legacy ADV and Extended ADV
+         * - Identity address ensures the same address is used in both ADV sets
+         */
+        err = bt_le_ext_adv_create(BT_LE_EXT_ADV_NCONN_IDENTITY, NULL, &per_adv_set);
         if (err) {
             LOG_ERR("Failed to create periodic ext adv set: %d", err);
             return err;
         }
+        LOG_INF("📡 Created NON-CONNECTABLE Extended ADV set for Periodic ADV");
     }
+
+    /*
+     * Set Extended ADV data (device name)
+     * CRITICAL: Extended ADV must have data for SyncInfo to be included
+     * Reference: Zephyr sample sets device name in Extended ADV
+     */
+    static const struct bt_data ext_ad[] = {
+        BT_DATA(BT_DATA_NAME_COMPLETE, CONFIG_ZMK_STATUS_ADV_KEYBOARD_NAME,
+                sizeof(CONFIG_ZMK_STATUS_ADV_KEYBOARD_NAME) - 1),
+    };
+
+    err = bt_le_ext_adv_set_data(per_adv_set, ext_ad, ARRAY_SIZE(ext_ad), NULL, 0);
+    if (err) {
+        LOG_ERR("Failed to set extended adv data: %d", err);
+        return err;
+    }
+    LOG_INF("📡 Extended ADV data set (name: %s)", CONFIG_ZMK_STATUS_ADV_KEYBOARD_NAME);
 
     /* Set Periodic Advertising parameters */
     struct bt_le_per_adv_param per_param = {
@@ -535,7 +559,7 @@ int periodic_adv_protocol_start(void) {
         return err;
     }
 
-    /* Set initial data (static packet for sync establishment) */
+    /* Set initial Periodic ADV data (static packet for sync establishment) */
     periodic_adv_build_static_packet(&static_packet);
     struct bt_data per_ad[] = {
         BT_DATA(BT_DATA_MANUFACTURER_DATA,
@@ -549,19 +573,30 @@ int periodic_adv_protocol_start(void) {
         return err;
     }
 
-    /* Start Extended Advertising (carrier for SyncInfo) */
-    err = bt_le_ext_adv_start(per_adv_set, BT_LE_EXT_ADV_START_DEFAULT);
-    if (err && err != -EALREADY) {
-        LOG_ERR("Failed to start periodic ext adv: %d", err);
-        return err;
-    }
-
-    /* Start Periodic Advertising */
+    /*
+     * CRITICAL: Start Periodic ADV BEFORE Extended ADV
+     * Reference: Zephyr samples/bluetooth/periodic_adv does this order:
+     *   1. bt_le_per_adv_start()
+     *   2. bt_le_ext_adv_start()
+     *
+     * This ensures the SyncInfo is ready when Extended ADV starts broadcasting
+     */
     err = bt_le_per_adv_start(per_adv_set);
     if (err && err != -EALREADY) {
         LOG_ERR("Failed to start periodic adv: %d", err);
         return err;
     }
+    LOG_INF("📡 Periodic Advertising started");
+
+    /* Now start Extended Advertising (carrier for SyncInfo) */
+    err = bt_le_ext_adv_start(per_adv_set, BT_LE_EXT_ADV_START_DEFAULT);
+    if (err && err != -EALREADY) {
+        LOG_ERR("Failed to start ext adv: %d", err);
+        /* Stop periodic adv since ext adv failed */
+        bt_le_per_adv_stop(per_adv_set);
+        return err;
+    }
+    LOG_INF("📡 Extended Advertising started (carrier for SyncInfo)");
 
     per_adv_started = true;
 
@@ -572,10 +607,10 @@ int periodic_adv_protocol_start(void) {
     /* Log the SID of this advertising set */
     struct bt_le_ext_adv_info adv_info;
     if (bt_le_ext_adv_get_info(per_adv_set, &adv_info) == 0) {
-        LOG_INF("📡 Periodic Advertising started on SID=%d (dynamic: %dms, static: %dms)",
+        LOG_INF("📡 Periodic ADV active on SID=%d (dynamic: %dms, static: %dms)",
                 adv_info.id, DYNAMIC_INTERVAL_MS, STATIC_INTERVAL_MS);
     } else {
-        LOG_INF("Periodic Advertising started (dynamic: %dms, static: %dms)",
+        LOG_INF("📡 Periodic ADV active (dynamic: %dms, static: %dms)",
                 DYNAMIC_INTERVAL_MS, STATIC_INTERVAL_MS);
     }
 

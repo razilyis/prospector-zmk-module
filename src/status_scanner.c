@@ -861,6 +861,16 @@ int zmk_status_scanner_get_primary_keyboard(void) {
 // Called for ALL scan results - we filter for Extended ADV with periodic info
 static void extended_scan_recv(const struct bt_le_scan_recv_info *info,
                                 struct net_buf_simple *buf) {
+    // Debug: count all Extended ADV callbacks
+    static uint32_t ext_adv_count = 0;
+    ext_adv_count++;
+
+    // Log every 100th call to see if callback is being invoked
+    if (ext_adv_count == 1 || ext_adv_count % 100 == 0) {
+        LOG_INF("[EXT_SCAN] callback #%u, interval=%u, sid=%u",
+                ext_adv_count, info->interval, info->sid);
+    }
+
     // Only interested in Extended ADV with periodic info (interval != 0)
     if (info->interval == 0) {
         return;  // Not a periodic advertiser - skip
@@ -870,11 +880,9 @@ static void extended_scan_recv(const struct bt_le_scan_recv_info *info,
     static uint32_t periodic_adv_count = 0;
     periodic_adv_count++;
 
-    // Log first detection only
-    if (periodic_adv_count == 1) {
-        LOG_INF("📡 Found periodic advertiser: SID=%d, Interval=%dms",
-                info->sid, info->interval * 5 / 4);
-    }
+    // Log EVERY periodic advertiser detection for debugging
+    LOG_INF("[EXT_SCAN] PERIODIC FOUND! SID=%d, Interval=%dms, count=%u",
+            info->sid, info->interval * 5 / 4, periodic_adv_count);
 
     // Cache the SID for later use when we receive Prospector data from legacy ADV
     cache_periodic_sid(info->addr, info->sid);
@@ -915,20 +923,9 @@ static void per_adv_sync_synced_cb(struct bt_le_per_adv_sync *sync,
         keyboards[selected_keyboard_index].periodic_synced = true;
     }
 
-    // CRITICAL: Enable receiving periodic advertising data
-    // Without this call, the sync is established but no data is received!
-    int recv_err = bt_le_per_adv_sync_recv_enable(sync);
-    if (recv_err == 0) {
-        LOG_INF("[SYNC] Periodic ADV receive enabled!");
-    } else if (recv_err == -EALREADY) {
-        LOG_INF("[SYNC] Periodic ADV receive already enabled");
-    } else {
-        LOG_ERR("[SYNC] Failed to enable periodic ADV receive: %d", recv_err);
-    }
-
-    // NOTE: Do NOT stop scanning - it breaks UI updates via legacy ADV
-    // Test result: Even with scanning stopped, recv_cb was never called.
-    // This suggests the keyboard is not sending periodic data, NOT a radio scheduling issue.
+    // NOTE: bt_le_per_adv_sync_recv_enable() is NOT called here
+    // Reference: Zephyr samples/bluetooth/periodic_sync doesn't call it
+    // Data reception is automatically enabled when sync callbacks are registered
 
     // Start timeout to check if we receive any data on this SID
     last_periodic_data_time = 0;
