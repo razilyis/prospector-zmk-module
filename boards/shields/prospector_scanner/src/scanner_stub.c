@@ -587,8 +587,12 @@ void scanner_trigger_high_priority_update(void) {
     pending_data.bat[3] = kb->data.peripheral_battery[2];
     pending_data.rssi = kb->rssi;
 
-    /* Update signal data with new RSSI (rate calculation remains separate) */
+    /* Update signal data with new RSSI */
     last_rssi = kb->rssi;
+
+    /* Increment receive counter for rate calculation (v2 Periodic ADV path)
+     * This is the v2 equivalent of atomic_inc(&adv_receive_count) in scanner_msg_send_keyboard_data */
+    atomic_inc(&adv_receive_count);
 
     /* Set flags for immediate update */
     pending_data.no_keyboards = false;
