@@ -923,9 +923,16 @@ static void per_adv_sync_synced_cb(struct bt_le_per_adv_sync *sync,
         keyboards[selected_keyboard_index].periodic_synced = true;
     }
 
-    // NOTE: bt_le_per_adv_sync_recv_enable() is NOT called here
-    // Reference: Zephyr samples/bluetooth/periodic_sync doesn't call it
-    // Data reception is automatically enabled when sync callbacks are registered
+    // Try enabling periodic ADV receive explicitly
+    // Note: Zephyr sample doesn't call this, but nRF52840 controller might need it
+    int recv_err = bt_le_per_adv_sync_recv_enable(sync);
+    if (recv_err == 0) {
+        LOG_INF("[SYNC] recv_enable succeeded");
+    } else if (recv_err == -EALREADY) {
+        LOG_INF("[SYNC] recv already enabled");
+    } else {
+        LOG_ERR("[SYNC] recv_enable failed: %d", recv_err);
+    }
 
     // Start timeout to check if we receive any data on this SID
     last_periodic_data_time = 0;

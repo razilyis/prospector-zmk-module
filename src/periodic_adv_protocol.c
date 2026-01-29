@@ -449,8 +449,17 @@ static void update_periodic_advertising_data(bool send_static) {
         if (err) {
             LOG_WRN("Failed to set dynamic periodic data: %d", err);
         } else {
+            /* Log every 100th packet at INF level to confirm periodic ADV is working */
+        static uint32_t pkt_count = 0;
+        pkt_count++;
+        if (pkt_count == 1 || pkt_count % 100 == 0) {
+            LOG_INF("[PERIODIC_TX] Dynamic #%u sent (seq=%d, layer=%d, per_adv_set=%p)",
+                    pkt_count, dynamic_packet.sequence_number, dynamic_packet.active_layer,
+                    (void*)per_adv_set);
+        } else {
             LOG_DBG("Dynamic packet sent (%d bytes, seq=%d, layer=%d)",
                     DYNAMIC_PACKET_SIZE, dynamic_packet.sequence_number, dynamic_packet.active_layer);
+        }
         }
     }
 }
@@ -616,6 +625,20 @@ int periodic_adv_protocol_start(void) {
 
     return 0;
 }
+
+/* Debug function to check periodic ADV status - can be called anytime */
+void periodic_adv_log_status(void) {
+    if (!per_adv_started) {
+        LOG_INF("[PERIODIC_STATUS] NOT started");
+        return;
+    }
+
+    struct bt_le_ext_adv_info adv_info;
+    if (per_adv_set && bt_le_ext_adv_get_info(per_adv_set, &adv_info) == 0) {
+        LOG_INF("[PERIODIC_STATUS] ACTIVE - SID=%d, seq=%d", adv_info.id, sequence_number);
+    } else {
+        LOG_INF("[PERIODIC_STATUS] ACTIVE - per_adv_set=%p, seq=%d", (void*)per_adv_set, sequence_number);
+    }
 
 int periodic_adv_protocol_stop(void) {
     if (!per_adv_started) {
