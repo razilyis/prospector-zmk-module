@@ -1371,11 +1371,20 @@ int zmk_status_scanner_select_keyboard(int keyboard_index) {
         return -EINVAL;
     }
 
+    // Check if we're already synced to this keyboard - don't restart sync
+    if (keyboard_index == selected_keyboard_index &&
+        (current_sync_state == SYNC_STATE_SYNCED || current_sync_state == SYNC_STATE_SYNCING)) {
+        LOG_DBG("📡 Keyboard %d already selected and syncing/synced - keeping existing sync", keyboard_index);
+        return 0;
+    }
+
     // Cancel any pending retry
     k_work_cancel_delayable(&sync_retry_work);
 
-    // Stop existing sync
-    stop_periodic_sync();
+    // Stop existing sync (only if switching to different keyboard)
+    if (keyboard_index != selected_keyboard_index) {
+        stop_periodic_sync();
+    }
 
     selected_keyboard_index = keyboard_index;
     sync_retry_count = 0;
@@ -1383,7 +1392,11 @@ int zmk_status_scanner_select_keyboard(int keyboard_index) {
     // Check if keyboard supports Periodic
     struct zmk_keyboard_status *kb = &keyboards[keyboard_index];
     if (kb->active && kb->has_periodic) {
-        return start_periodic_sync(keyboard_index);
+        // Only start sync if not already synced
+        if (current_sync_state != SYNC_STATE_SYNCED && current_sync_state != SYNC_STATE_SYNCING) {
+            return start_periodic_sync(keyboard_index);
+        }
+        return 0;
     } else {
         current_sync_state = SYNC_STATE_NONE;
         return 0;
