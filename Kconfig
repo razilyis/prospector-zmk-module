@@ -103,7 +103,9 @@ config ZMK_STATUS_ADV_PERIODIC
     bool "Enable Periodic Advertising for low-latency status updates"
     default n
     depends on ZMK_STATUS_ADVERTISEMENT
-    depends on BT_PER_ADV
+    select BT_EXT_ADV
+    select BT_PER_ADV
+    select BT_CTLR_ADV_EXT if BT_CTLR
     select BT_CTLR_ADV_PERIODIC if BT_CTLR
     help
       Enable Periodic Advertising in addition to Legacy/Extended Advertising.
@@ -214,7 +216,8 @@ config PROSPECTOR_SCANNER_PERIODIC_SYNC
     bool "Enable Periodic Advertising sync support"
     default y
     depends on PROSPECTOR_MODE_SCANNER
-    depends on BT_PER_ADV_SYNC
+    select BT_EXT_ADV
+    select BT_PER_ADV_SYNC
     select BT_CTLR_SCAN_EXT if BT_CTLR
     select BT_CTLR_SYNC_PERIODIC if BT_CTLR
     help
@@ -235,6 +238,13 @@ config BT_PER_ADV_SYNC_MAX
     help
       Maximum number of Periodic Advertising syncs.
       Only 1 is needed since we sync with the main screen keyboard only.
+
+# Required for receiving >31 byte periodic ADV data (Dynamic: 40 bytes, Static: 132 bytes)
+config BT_CTLR_SCAN_DATA_LEN_MAX
+    default 255 if PROSPECTOR_SCANNER_PERIODIC_SYNC
+
+config BT_PER_ADV_SYNC_BUF_SIZE
+    default 255 if PROSPECTOR_SCANNER_PERIODIC_SYNC
 
 config PROSPECTOR_TOUCH_ENABLED
     bool "Enable touch panel support"
